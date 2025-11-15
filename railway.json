@@ -5,7 +5,7 @@
     "buildCommand": "pnpm install && pnpm build"
   },
   "deploy": {
-    "startCommand": "pnpm start",
+    "startCommand": "pnpm init-db && pnpm start",
     "healthcheckPath": "/",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
