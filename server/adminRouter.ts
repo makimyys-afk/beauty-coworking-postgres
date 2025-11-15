@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import * as db from "./db";
 import { sdk } from "./_core/sdk";
 import { eq, sql } from "drizzle-orm";
-import { users, workspaces, bookings, reviews, transactions } from "../drizzle/schema";
+import { users, workspaces, bookings, reviews, transactions, adminLogs } from "../drizzle/schema";
 
 // Middleware для проверки прав администратора
 async function requireAdmin(req: Request, res: Response, next: Function) {
@@ -90,6 +90,16 @@ export function registerAdminRoutes(app: Express) {
         .set({ name, email, phone, points })
         .where(eq(users.id, userId));
 
+      // Log admin action
+      const adminUser = (req as any).user;
+      await database.insert(adminLogs).values({
+        adminId: adminUser.id,
+        action: "user_updated",
+        entityType: "user",
+        entityId: userId,
+        details: JSON.stringify({ name, email, phone, points }),
+      });
+
       res.json({ success: true });
     } catch (error) {
       console.error("[Admin] Failed to update user:", error);
@@ -106,6 +116,18 @@ export function registerAdminRoutes(app: Express) {
         res.status(500).json({ error: "Database not available" });
         return;
       }
+
+      // Log admin action before deletion
+      const adminUser = (req as any).user;
+      const [userToDelete] = await database.select().from(users).where(eq(users.id, userId));
+      
+      await database.insert(adminLogs).values({
+        adminId: adminUser.id,
+        action: "user_deleted",
+        entityType: "user",
+        entityId: userId,
+        details: JSON.stringify({ name: userToDelete?.name, email: userToDelete?.email }),
+      });
 
       await database.delete(users).where(eq(users.id, userId));
       res.json({ success: true });
@@ -146,6 +168,16 @@ export function registerAdminRoutes(app: Express) {
         isAvailable: isAvailable ?? true,
       }).returning();
 
+      // Log admin action
+      const adminUser = (req as any).user;
+      await database.insert(adminLogs).values({
+        adminId: adminUser.id,
+        action: "workspace_created",
+        entityType: "workspace",
+        entityId: newWorkspace.id,
+        details: JSON.stringify({ name, type, pricePerHour }),
+      });
+
       res.json(newWorkspace);
     } catch (error) {
       console.error("[Admin] Failed to create workspace:", error);
@@ -177,6 +209,16 @@ export function registerAdminRoutes(app: Express) {
         })
         .where(eq(workspaces.id, workspaceId));
 
+      // Log admin action
+      const adminUser = (req as any).user;
+      await database.insert(adminLogs).values({
+        adminId: adminUser.id,
+        action: "workspace_updated",
+        entityType: "workspace",
+        entityId: workspaceId,
+        details: JSON.stringify({ name, type, pricePerHour }),
+      });
+
       res.json({ success: true });
     } catch (error) {
       console.error("[Admin] Failed to update workspace:", error);
@@ -193,6 +235,18 @@ export function registerAdminRoutes(app: Express) {
         res.status(500).json({ error: "Database not available" });
         return;
       }
+
+      // Log admin action before deletion
+      const adminUser = (req as any).user;
+      const [workspaceToDelete] = await database.select().from(workspaces).where(eq(workspaces.id, workspaceId));
+      
+      await database.insert(adminLogs).values({
+        adminId: adminUser.id,
+        action: "workspace_deleted",
+        entityType: "workspace",
+        entityId: workspaceId,
+        details: JSON.stringify({ name: workspaceToDelete?.name }),
+      });
 
       await database.delete(workspaces).where(eq(workspaces.id, workspaceId));
       res.json({ success: true });
@@ -253,6 +307,16 @@ export function registerAdminRoutes(app: Express) {
         .set({ status, updatedAt: new Date() })
         .where(eq(bookings.id, bookingId));
 
+      // Log admin action
+      const adminUser = (req as any).user;
+      await database.insert(adminLogs).values({
+        adminId: adminUser.id,
+        action: "booking_updated",
+        entityType: "booking",
+        entityId: bookingId,
+        details: JSON.stringify({ status }),
+      });
+
       res.json({ success: true });
     } catch (error) {
       console.error("[Admin] Failed to update booking status:", error);
@@ -279,6 +343,38 @@ export function registerAdminRoutes(app: Express) {
     } catch (error) {
       console.error("[Admin] Failed to update payment status:", error);
       res.status(500).json({ error: "Ошибка обновления статуса оплаты" });
+    }
+  });
+
+  // === LOGS ===
+  app.get("/api/admin/logs/recent", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+
+      const recentLogs = await database
+        .select({
+          id: adminLogs.id,
+          adminId: adminLogs.adminId,
+          action: adminLogs.action,
+          entityType: adminLogs.entityType,
+          entityId: adminLogs.entityId,
+          details: adminLogs.details,
+          createdAt: adminLogs.createdAt,
+          adminName: users.name,
+        })
+        .from(adminLogs)
+        .leftJoin(users, eq(adminLogs.adminId, users.id))
+        .orderBy(sql`${adminLogs.createdAt} DESC`)
+        .limit(10);
+
+      res.json(recentLogs);
+    } catch (error) {
+      console.error("[Admin] Failed to fetch recent logs:", error);
+      res.status(500).json({ error: "Ошибка получения логов" });
     }
   });
 
@@ -326,8 +422,17 @@ export function registerAdminRoutes(app: Express) {
 
       // Получаем информацию об отзыве перед удалением
       const [review] = await database.select().from(reviews).where(eq(reviews.id, reviewId));
+      const adminUser = (req as any).user;
       
       if (review) {
+        // Log admin action
+        await database.insert(adminLogs).values({
+          adminId: adminUser.id,
+          action: "review_deleted",
+          entityType: "review",
+          entityId: reviewId,
+          details: JSON.stringify({ workspaceId: review.workspaceId, rating: review.rating }),
+        });
         // Удаляем отзыв
         await database.delete(reviews).where(eq(reviews.id, reviewId));
         

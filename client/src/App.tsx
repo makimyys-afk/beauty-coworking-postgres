@@ -28,6 +28,7 @@ import Notifications from "./pages/settings/Notifications";
 import Security from "./pages/settings/Security";
 import Support from "./pages/Support";
 import AuthGuard from "./components/AuthGuard";
+import AdminGuard from "./components/AdminGuard";
 
 function Router() {
   return (
@@ -54,11 +55,31 @@ function Router() {
               <Route path={"/profile/notifications"} component={Notifications} />
               <Route path={"/profile/security"} component={Security} />
               <Route path={"/support"} component={Support} />
-              <Route path={"/admin"} component={AdminDashboard} />
-              <Route path={"/admin/users"} component={AdminUsers} />
-              <Route path={"/admin/workspaces"} component={AdminWorkspaces} />
-              <Route path={"/admin/bookings"} component={AdminBookings} />
-              <Route path={"/admin/reviews"} component={AdminReviews} />
+              <Route path={"/admin"}>
+                <AdminGuard>
+                  <AdminDashboard />
+                </AdminGuard>
+              </Route>
+              <Route path={"/admin/users"}>
+                <AdminGuard>
+                  <AdminUsers />
+                </AdminGuard>
+              </Route>
+              <Route path={"/admin/workspaces"}>
+                <AdminGuard>
+                  <AdminWorkspaces />
+                </AdminGuard>
+              </Route>
+              <Route path={"/admin/bookings"}>
+                <AdminGuard>
+                  <AdminBookings />
+                </AdminGuard>
+              </Route>
+              <Route path={"/admin/reviews"}>
+                <AdminGuard>
+                  <AdminReviews />
+                </AdminGuard>
+              </Route>
               <Route path={"/404"} component={NotFound} />
               <Route component={NotFound} />
             </Switch>

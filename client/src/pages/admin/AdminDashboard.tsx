@@ -12,6 +12,17 @@ interface Stats {
   activeBookings: number;
 }
 
+interface AdminLog {
+  id: number;
+  adminId: number;
+  action: string;
+  entityType: string;
+  entityId: number | null;
+  details: string | null;
+  createdAt: string;
+  adminName: string;
+}
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats>({
     totalUsers: 0,
@@ -21,10 +32,12 @@ export default function AdminDashboard() {
     totalRevenue: 0,
     activeBookings: 0,
   });
+  const [recentLogs, setRecentLogs] = useState<AdminLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchStats();
+    fetchRecentLogs();
   }, []);
 
   const fetchStats = async () => {
@@ -39,6 +52,32 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchRecentLogs = async () => {
+    try {
+      const response = await fetch("/api/admin/logs/recent");
+      if (response.ok) {
+        const data = await response.json();
+        setRecentLogs(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch recent logs:", error);
+    }
+  };
+
+  const getActionLabel = (action: string) => {
+    const labels: Record<string, string> = {
+      user_created: "Создан пользователь",
+      user_updated: "Обновлен пользователь",
+      user_deleted: "Удален пользователь",
+      workspace_created: "Создано рабочее место",
+      workspace_updated: "Обновлено рабочее место",
+      workspace_deleted: "Удалено рабочее место",
+      booking_updated: "Обновлено бронирование",
+      review_deleted: "Удален отзыв",
+    };
+    return labels[action] || action;
   };
 
   const statCards = [
@@ -156,9 +195,24 @@ export default function AdminDashboard() {
             <CardDescription>Недавняя активность в системе</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-sm text-gray-600">
-              <p>Функция в разработке</p>
-            </div>
+            {recentLogs.length === 0 ? (
+              <div className="text-sm text-gray-600">
+                <p>Нет недавних действий</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recentLogs.map((log) => (
+                  <div key={log.id} className="flex items-start gap-3 text-sm border-b pb-2 last:border-0">
+                    <div className="flex-1">
+                      <p className="font-medium">{getActionLabel(log.action)}</p>
+                      <p className="text-gray-600 text-xs">
+                        {log.adminName} • {new Date(log.createdAt).toLocaleString("ru-RU")}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

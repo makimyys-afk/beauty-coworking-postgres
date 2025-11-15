@@ -167,10 +167,9 @@ export async function createBooking(booking: typeof bookings.$inferInsert, userI
 
   const result = await executeWithLogging(
     async () => {
-      await db.insert(bookings).values(booking);
-      // Получаем последний вставленный ID
-      const [lastInsert] = await db.select({ id: sql<number>`LAST_INSERT_ID()` }).from(bookings).limit(1);
-      return lastInsert.id;
+      // PostgreSQL: используем RETURNING для получения ID
+      const [inserted] = await db.insert(bookings).values(booking).returning({ id: bookings.id });
+      return inserted.id;
     },
     `INSERT INTO bookings VALUES (...)`,
     userId,
@@ -231,7 +230,8 @@ export async function createReview(review: typeof reviews.$inferInsert, userId?:
 
   const result = await executeWithLogging(
     async () => {
-      await db.insert(reviews).values(review);
+      // PostgreSQL: используем RETURNING для получения ID
+      const [inserted] = await db.insert(reviews).values(review).returning({ id: reviews.id });
       
       // Обновляем рейтинг рабочего места
       const allReviews = await db.select().from(reviews).where(eq(reviews.workspaceId, review.workspaceId));
@@ -244,9 +244,7 @@ export async function createReview(review: typeof reviews.$inferInsert, userId?:
         })
         .where(eq(workspaces.id, review.workspaceId));
       
-      // Получаем последний вставленный ID
-      const [lastInsert] = await db.select({ id: sql<number>`LAST_INSERT_ID()` }).from(reviews).limit(1);
-      return lastInsert.id;
+      return inserted.id;
     },
     `INSERT INTO reviews VALUES (...) and UPDATE workspaces rating`,
     userId,

@@ -9,6 +9,11 @@ export const paymentStatusEnum = pgEnum("payment_status", ["pending", "paid", "r
 export const transactionTypeEnum = pgEnum("transaction_type", ["payment", "refund", "deposit", "withdrawal"]);
 export const transactionStatusEnum = pgEnum("transaction_status", ["pending", "completed", "failed"]);
 export const operationEnum = pgEnum("operation", ["SELECT", "INSERT", "UPDATE", "DELETE", "OTHER"]);
+export const adminActionEnum = pgEnum("admin_action", [
+  "user_created", "user_updated", "user_deleted",
+  "workspace_created", "workspace_updated", "workspace_deleted",
+  "booking_updated", "review_deleted"
+]);
 
 /**
  * Core user table backing auth flow.
@@ -128,3 +133,19 @@ export const sqlLogs = pgTable("sqlLogs", {
 
 export type SqlLog = typeof sqlLogs.$inferSelect;
 export type InsertSqlLog = typeof sqlLogs.$inferInsert;
+
+/**
+ * Admin Activity Logs - логи действий администратора
+ */
+export const adminLogs = pgTable("adminLogs", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  adminId: integer("adminId").notNull(), // ID администратора
+  action: adminActionEnum("action").notNull(), // тип действия
+  entityType: varchar("entityType", { length: 50 }).notNull(), // user, workspace, booking, review
+  entityId: integer("entityId"), // ID сущности
+  details: text("details"), // JSON с деталями действия
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AdminLog = typeof adminLogs.$inferSelect;
+export type InsertAdminLog = typeof adminLogs.$inferInsert;
