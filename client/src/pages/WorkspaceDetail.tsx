@@ -70,9 +70,9 @@ export default function WorkspaceDetail() {
 
   const calculatePrice = () => {
     if (bookingType === "hour") {
-      return (workspace.pricePerHour * hours) / 100;
+      return workspace.pricePerHour * hours;
     }
-    return workspace.pricePerDay / 100;
+    return workspace.pricePerDay;
   };
 
   const handleBooking = () => {
