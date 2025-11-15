@@ -91,7 +91,24 @@ export function registerSimpleAuthRoutes(app: Express) {
   app.get("/api/auth/me", async (req: Request, res: Response) => {
     try {
       const user = await sdk.authenticateRequest(req);
-      res.json({ user: { name: user.name, email: user.email } });
+      // Получаем полные данные пользователя из БД, включая роль
+      const dbUser = await db.getUserByOpenId(user.openId);
+      
+      if (!dbUser) {
+        res.status(404).json({ error: "Пользователь не найден" });
+        return;
+      }
+      
+      res.json({ 
+        user: { 
+          id: dbUser.id,
+          name: dbUser.name, 
+          email: dbUser.email,
+          role: dbUser.role,
+          status: dbUser.status,
+          points: dbUser.points
+        } 
+      });
     } catch (error) {
       res.status(401).json({ error: "Не авторизован" });
     }
