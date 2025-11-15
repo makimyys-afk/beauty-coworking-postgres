@@ -20,17 +20,23 @@ export function useAuth(_options?: UseAuthOptions) {
 
   const fetchUser = useCallback(async () => {
     try {
-      const response = await fetch("/api/auth/me");
+      const response = await fetch("/api/auth/me", {
+        credentials: "include",
+      });
       if (response.ok) {
         const data = await response.json();
-        // Преобразуем данные в формат User
-        setUser({
-          id: 1,
-          openId: "mock-orlova-maria",
-          name: data.user.name || "Орлова Мария",
-          email: data.user.email || "orlova.maria@example.com",
-          role: "user",
-        });
+        if (data.user) {
+          // Используем реальные данные из API
+          setUser({
+            id: data.user.id,
+            openId: data.user.openId || "",
+            name: data.user.name,
+            email: data.user.email,
+            role: data.user.role || "user",
+          });
+        } else {
+          setUser(null);
+        }
       } else {
         setUser(null);
       }

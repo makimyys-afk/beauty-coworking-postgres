@@ -102,6 +102,7 @@ export function registerSimpleAuthRoutes(app: Express) {
       res.json({ 
         user: { 
           id: dbUser.id,
+          openId: dbUser.openId,
           name: dbUser.name, 
           email: dbUser.email,
           role: dbUser.role,

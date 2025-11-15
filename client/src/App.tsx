@@ -21,6 +21,7 @@ import AdminWorkspaces from "./pages/admin/AdminWorkspaces";
 import AdminBookings from "./pages/admin/AdminBookings";
 import AdminReviews from "./pages/admin/AdminReviews";
 import Profile from "./pages/Profile";
+import StatusPage from "./pages/StatusPage";
 import PersonalData from "./pages/settings/PersonalData";
 import Documents from "./pages/settings/Documents";
 import PaymentMethods from "./pages/settings/PaymentMethods";
@@ -49,6 +50,7 @@ function Router() {
               <Route path={"/logs"} component={SqlLogs} />
               <Route path={"/reviews"} component={Reviews} />
               <Route path={"/profile"} component={Profile} />
+              <Route path={"/profile/status"} component={StatusPage} />
               <Route path={"/profile/personal"} component={PersonalData} />
               <Route path={"/profile/documents"} component={Documents} />
               <Route path={"/profile/payment"} component={PaymentMethods} />
