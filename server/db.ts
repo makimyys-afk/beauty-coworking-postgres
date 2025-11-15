@@ -167,8 +167,62 @@ export async function createBooking(booking: typeof bookings.$inferInsert, userI
 
   const result = await executeWithLogging(
     async () => {
+      // Get user's points to determine status and discount
+      const [user] = await db.select({ points: users.points }).from(users).where(eq(users.id, booking.userId)).limit(1);
+      
+      if (!user) throw new Error("User not found");
+      
+      // Calculate discount based on status (points)
+      let discount = 0;
+      const points = user.points || 0;
+      
+      if (points >= 3000) {
+        discount = 0.15; // Platinum: 15%
+      } else if (points >= 1500) {
+        discount = 0.10; // Gold: 10%
+      } else if (points >= 750) {
+        discount = 0.05; // Silver: 5%
+      }
+      // Bronze (0-749): 0% discount
+      
+      // Apply discount to total price
+      const originalPrice = booking.totalPrice;
+      const discountedPrice = Math.round(originalPrice * (1 - discount));
+      
+      // Update booking with discounted price
+      const bookingWithDiscount = {
+        ...booking,
+        totalPrice: discountedPrice
+      };
+      
       // PostgreSQL: используем RETURNING для получения ID
-      const [inserted] = await db.insert(bookings).values(booking).returning({ id: bookings.id });
+      const [inserted] = await db.insert(bookings).values(bookingWithDiscount).returning({ id: bookings.id });
+      
+      // Award points: 1 point per 100₽
+      const pointsToAdd = Math.floor(discountedPrice / 100);
+      if (pointsToAdd > 0) {
+        await db.update(users)
+          .set({ points: sql`${users.points} + ${pointsToAdd}` })
+          .where(eq(users.id, booking.userId));
+        
+        // Update user status based on new points
+        const [updatedUser] = await db.select({ points: users.points }).from(users).where(eq(users.id, booking.userId)).limit(1);
+        if (updatedUser) {
+          const newPoints = updatedUser.points || 0;
+          let newStatus: "bronze" | "silver" | "gold" = "bronze";
+          
+          if (newPoints >= 1500) {
+            newStatus = "gold";
+          } else if (newPoints >= 750) {
+            newStatus = "silver";
+          }
+          
+          await db.update(users)
+            .set({ status: newStatus })
+            .where(eq(users.id, booking.userId));
+        }
+      }
+      
       return inserted.id;
     },
     `INSERT INTO bookings VALUES (...)`,
@@ -243,6 +297,28 @@ export async function createReview(review: typeof reviews.$inferInsert, userId?:
           reviewCount: allReviews.length 
         })
         .where(eq(workspaces.id, review.workspaceId));
+      
+      // Award 10 points for creating a review
+      await db.update(users)
+        .set({ points: sql`${users.points} + 10` })
+        .where(eq(users.id, review.userId));
+      
+      // Update user status based on new points
+      const [updatedUser] = await db.select({ points: users.points }).from(users).where(eq(users.id, review.userId)).limit(1);
+      if (updatedUser) {
+        const newPoints = updatedUser.points || 0;
+        let newStatus: "bronze" | "silver" | "gold" = "bronze";
+        
+        if (newPoints >= 1500) {
+          newStatus = "gold";
+        } else if (newPoints >= 750) {
+          newStatus = "silver";
+        }
+        
+        await db.update(users)
+          .set({ status: newStatus })
+          .where(eq(users.id, review.userId));
+      }
       
       return inserted.id;
     },
@@ -371,6 +447,37 @@ export async function getUserProfile(userId: number) {
     "users.getUserProfile",
     userId,
     "users.getUserProfile",
+    { userId }
+  );
+}
+
+// Update user status based on points
+export async function updateUserStatus(userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await executeWithLogging(
+    async () => {
+      const [user] = await db.select({ points: users.points }).from(users).where(eq(users.id, userId)).limit(1);
+      
+      if (!user) throw new Error("User not found");
+      
+      const points = user.points || 0;
+      let newStatus: "bronze" | "silver" | "gold" = "bronze";
+      
+      if (points >= 1500) {
+        newStatus = "gold";
+      } else if (points >= 750) {
+        newStatus = "silver";
+      }
+      
+      await db.update(users)
+        .set({ status: newStatus })
+        .where(eq(users.id, userId));
+    },
+    `UPDATE user status based on points for user ${userId}`,
+    userId,
+    "users.updateStatus",
     { userId }
   );
 }
