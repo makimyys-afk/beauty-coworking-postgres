@@ -85,6 +85,17 @@ export default function LoginPage() {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Вход..." : "Войти"}
             </Button>
+            <div className="text-center text-sm">
+              <span className="text-gray-600">Нет аккаунта? </span>
+              <button
+                type="button"
+                onClick={() => setLocation("/register")}
+                className="text-pink-600 hover:underline"
+                disabled={loading}
+              >
+                Зарегистрироваться
+              </button>
+            </div>
           </form>
 
         </CardContent>

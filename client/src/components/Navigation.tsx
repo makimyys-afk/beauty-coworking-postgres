@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { MobileMenu } from "@/components/MobileMenu";
 import { APP_TITLE, getLoginUrl } from "@/const";
-import { Home, MapPin, Calendar, DollarSign, Database, LogOut, User, Star } from "lucide-react";
+import { Home, MapPin, Calendar, DollarSign, Database, LogOut, User, Star, Shield } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 export default function Navigation() {
@@ -22,8 +22,9 @@ export default function Navigation() {
     { path: "/reviews", label: "Отзывы", icon: Star, authRequired: true },
   ];
 
-  // Добавляем логи для администраторов
+  // Добавляем логи и админ-панель для администраторов
   if (user?.role === "admin") {
+    navItems.push({ path: "/admin", label: "Админ-панель", icon: Shield, authRequired: true });
     navItems.push({ path: "/logs", label: "SQL Логи", icon: Database, authRequired: true });
   }
 

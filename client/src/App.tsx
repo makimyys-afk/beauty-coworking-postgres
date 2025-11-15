@@ -14,6 +14,12 @@ import Finances from "./pages/Finances";
 import SqlLogs from "./pages/SqlLogs";
 import Reviews from "./pages/Reviews";
 import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminWorkspaces from "./pages/admin/AdminWorkspaces";
+import AdminBookings from "./pages/admin/AdminBookings";
+import AdminReviews from "./pages/admin/AdminReviews";
 import Profile from "./pages/Profile";
 import PersonalData from "./pages/settings/PersonalData";
 import Documents from "./pages/settings/Documents";
@@ -28,6 +34,7 @@ function Router() {
     <>
       <Switch>
         <Route path="/login" component={LoginPage} />
+        <Route path="/register" component={RegisterPage} />
         <Route>
           <AuthGuard>
             <Navigation />
@@ -47,6 +54,11 @@ function Router() {
               <Route path={"/profile/notifications"} component={Notifications} />
               <Route path={"/profile/security"} component={Security} />
               <Route path={"/support"} component={Support} />
+              <Route path={"/admin"} component={AdminDashboard} />
+              <Route path={"/admin/users"} component={AdminUsers} />
+              <Route path={"/admin/workspaces"} component={AdminWorkspaces} />
+              <Route path={"/admin/bookings"} component={AdminBookings} />
+              <Route path={"/admin/reviews"} component={AdminReviews} />
               <Route path={"/404"} component={NotFound} />
               <Route component={NotFound} />
             </Switch>

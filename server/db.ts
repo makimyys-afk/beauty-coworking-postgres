@@ -21,7 +21,7 @@ export async function getDb() {
   return _db;
 }
 
-export async function upsertUser(user: InsertUser): Promise<void> {
+export async function upsertUser(user: InsertUser): Promise<{ id: number; openId: string; name: string | null; email: string | null }> {
   if (!user.openId) {
     throw new Error("User openId is required for upsert");
   }
@@ -75,6 +75,13 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       target: users.openId,
       set: updateSet,
     });
+
+    // Получаем созданного/обновленного пользователя
+    const result = await db.select().from(users).where(eq(users.openId, user.openId)).limit(1);
+    if (result.length === 0) {
+      throw new Error("Failed to retrieve user after upsert");
+    }
+    return { id: result[0].id, openId: result[0].openId, name: result[0].name, email: result[0].email };
   } catch (error) {
     console.error("[Database] Failed to upsert user:", error);
     throw error;
