@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import postgres from 'postgres';
+import pg from 'postgres';
 
 const execAsync = promisify(exec);
 
@@ -9,8 +9,12 @@ async function initDatabase() {
   try {
     console.log('🔍 Checking database connection...');
     
+    if (!process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL is not set');
+    }
+    
     // Check if database is accessible
-    const sql = postgres(process.env.DATABASE_URL);
+    const sql = pg(process.env.DATABASE_URL, { max: 1 });
     
     // Check if tables exist
     const tables = await sql`
