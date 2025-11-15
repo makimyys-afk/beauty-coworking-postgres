@@ -1,4 +1,4 @@
-import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
+import { eq, desc, and, or, gte, lte, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { InsertUser, users, workspaces, bookings, reviews, transactions, sqlLogs, Workspace, Booking, Review, Transaction, SqlLog } from "../drizzle/schema";
@@ -167,6 +167,34 @@ export async function createBooking(booking: typeof bookings.$inferInsert, userI
 
   const result = await executeWithLogging(
     async () => {
+      // Check for booking conflicts (same workspace, overlapping time)
+      const conflictingBookings = await db
+        .select()
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.workspaceId, booking.workspaceId),
+            eq(bookings.date, booking.date),
+            or(
+              eq(bookings.status, 'confirmed'),
+              eq(bookings.status, 'pending')
+            )
+          )
+        );
+      
+      // Check if there's a time overlap
+      for (const existing of conflictingBookings) {
+        const existingStart = parseInt(existing.startTime.split(':')[0]);
+        const existingEnd = parseInt(existing.endTime.split(':')[0]);
+        const newStart = parseInt(booking.startTime.split(':')[0]);
+        const newEnd = parseInt(booking.endTime.split(':')[0]);
+        
+        // Check for overlap: new booking starts before existing ends AND new booking ends after existing starts
+        if (newStart < existingEnd && newEnd > existingStart) {
+          throw new Error(`Это рабочее место уже забронировано на ${booking.date} с ${existing.startTime} до ${existing.endTime}`);
+        }
+      }
+      
       // Get user's points to determine status and discount
       const [user] = await db.select({ points: users.points }).from(users).where(eq(users.id, booking.userId)).limit(1);
       

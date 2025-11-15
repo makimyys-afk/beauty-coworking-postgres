@@ -162,8 +162,9 @@ export const appRouter = router({
 
   // Stats - статистика
   stats: router({
-    getUserStats: publicProcedure.query(async () => {
-      return db.getUserStats(MOCK_USER_ID);
+    getUserStats: publicProcedure.query(async ({ ctx }) => {
+      const userId = ctx.user?.id || MOCK_USER_ID;
+      return db.getUserStats(userId);
     }),
   }),
 
