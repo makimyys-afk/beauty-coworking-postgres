@@ -277,10 +277,9 @@ export async function createTransaction(transaction: typeof transactions.$inferI
 
   const result = await executeWithLogging(
     async () => {
-      await db.insert(transactions).values(transaction);
-      // Получаем последний вставленный ID
-      const [lastInsert] = await db.select({ id: sql<number>`LAST_INSERT_ID()` }).from(transactions).limit(1);
-      return lastInsert.id;
+      // Используем RETURNING для PostgreSQL
+      const [inserted] = await db.insert(transactions).values(transaction).returning({ id: transactions.id });
+      return inserted.id;
     },
     `INSERT INTO transactions VALUES (...)`,
     userId,
