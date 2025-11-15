@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { useUser } from "@/hooks/use-user";
+import { useUser } from "@/hooks/useUser";
 
 export default function AdminGuard({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useUser();
