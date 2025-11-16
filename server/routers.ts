@@ -45,6 +45,15 @@ export const appRouter = router({
       return db.getUserBookings(MOCK_USER_ID);
     }),
 
+    getOccupiedSlots: publicProcedure
+      .input(z.object({
+        workspaceId: z.number(),
+        date: z.string(), // Format: YYYY-MM-DD
+      }))
+      .query(async ({ input }) => {
+        return db.getOccupiedTimeSlots(input.workspaceId, input.date);
+      }),
+
     create: publicProcedure
       .input(z.object({
         workspaceId: z.number(),

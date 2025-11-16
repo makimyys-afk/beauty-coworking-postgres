@@ -509,3 +509,39 @@ export async function updateUserStatus(userId: number): Promise<void> {
     { userId }
   );
 }
+
+// Get occupied time slots for a workspace on a specific date
+export async function getOccupiedTimeSlots(workspaceId: number, date: string) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return executeWithLogging(
+    async () => {
+      const occupiedBookings = await db
+        .select({
+          startTime: bookings.startTime,
+          endTime: bookings.endTime,
+        })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.workspaceId, workspaceId),
+            eq(bookings.date, date),
+            or(
+              eq(bookings.status, 'confirmed'),
+              eq(bookings.status, 'pending')
+            )
+          )
+        );
+
+      return occupiedBookings.map(booking => ({
+        start: booking.startTime,
+        end: booking.endTime,
+      }));
+    },
+    `SELECT occupied time slots for workspace ${workspaceId} on ${date}`,
+    undefined,
+    "bookings.getOccupiedSlots",
+    { workspaceId, date }
+  );
+}

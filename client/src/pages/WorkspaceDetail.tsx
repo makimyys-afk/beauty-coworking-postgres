@@ -28,6 +28,12 @@ export default function WorkspaceDetail() {
   const [time, setTime] = useState("09:00");
   const [notes, setNotes] = useState("");
 
+  // Get occupied time slots for the selected date
+  const { data: occupiedSlots = [] } = trpc.bookings.getOccupiedSlots.useQuery(
+    { workspaceId, date },
+    { enabled: workspaceId > 0 && !!date }
+  );
+
   const createBookingMutation = trpc.bookings.create.useMutation({
     onSuccess: () => {
       toast.success("Бронирование успешно создано!");
@@ -74,6 +80,47 @@ export default function WorkspaceDetail() {
     }
     return workspace.pricePerDay;
   };
+
+  // Check if selected time conflicts with occupied slots
+  const isTimeSlotOccupied = () => {
+    const startHour = parseInt(time.split(':')[0]);
+    const endHour = bookingType === "hour" ? startHour + hours : 24;
+
+    return occupiedSlots.some((slot: { start: string; end: string }) => {
+      const slotStart = parseInt(slot.start.split(':')[0]);
+      const slotEnd = parseInt(slot.end.split(':')[0]);
+      
+      // Check for overlap
+      return startHour < slotEnd && endHour > slotStart;
+    });
+  };
+
+  // Generate available time slots (9:00 - 21:00)
+  const generateTimeSlots = () => {
+    const slots = [];
+    for (let hour = 9; hour <= 21; hour++) {
+      const timeStr = `${hour.toString().padStart(2, '0')}:00`;
+      const hourNum = hour;
+      const endHour = bookingType === "hour" ? hourNum + hours : 24;
+      
+      // Check if this slot conflicts with any occupied slot
+      const isOccupied = occupiedSlots.some((slot: { start: string; end: string }) => {
+        const slotStart = parseInt(slot.start.split(':')[0]);
+        const slotEnd = parseInt(slot.end.split(':')[0]);
+        return hourNum < slotEnd && endHour > slotStart;
+      });
+      
+      slots.push({
+        time: timeStr,
+        hour: hourNum,
+        isOccupied,
+        label: `${timeStr} ${isOccupied ? '(Занято)' : ''}`,
+      });
+    }
+    return slots;
+  };
+
+  const availableSlots = generateTimeSlots();
 
   const handleBooking = () => {
     const startDateTime = new Date(`${date}T${time}`);
@@ -259,13 +306,28 @@ export default function WorkspaceDetail() {
                   <Label htmlFor="time" className="text-foreground mb-2 block">
                     Время начала
                   </Label>
-                  <Input
+                  <select
                     id="time"
-                    type="time"
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
-                    className="border-border"
-                  />
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {availableSlots.map((slot) => (
+                      <option
+                        key={slot.time}
+                        value={slot.time}
+                        disabled={slot.isOccupied}
+                        className={slot.isOccupied ? 'text-muted-foreground' : ''}
+                      >
+                        {slot.label}
+                      </option>
+                    ))}
+                  </select>
+                  {occupiedSlots.length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Занятые слоты: {occupiedSlots.map((s: { start: string; end: string }) => `${s.start}-${s.end}`).join(', ')}
+                    </p>
+                  )}
                 </div>
 
                 {/* Hours (only for hourly) */}
@@ -319,10 +381,15 @@ export default function WorkspaceDetail() {
                 {/* Book Button */}
                 <Button
                   onClick={handleBooking}
-                  disabled={!workspace.isAvailable || createBookingMutation.isPending}
+                  disabled={!workspace.isAvailable || createBookingMutation.isPending || isTimeSlotOccupied()}
                   className="w-full bg-primary-gradient hover:bg-primary-gradient-hover text-white shadow-primary hover:shadow-primary-hover text-lg py-6"
                 >
-                  {createBookingMutation.isPending ? (
+                  {isTimeSlotOccupied() ? (
+                    <>
+                      <Clock className="w-5 h-5 mr-2" />
+                      Выбранное время занято
+                    </>
+                  ) : createBookingMutation.isPending ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                       Бронирование...
