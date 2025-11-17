@@ -74,6 +74,10 @@ export default function WorkspaceDetail() {
     ? JSON.parse(workspace.amenities as string)
     : [];
 
+  const equipment = workspace.equipment
+    ? JSON.parse(workspace.equipment as string)
+    : [];
+
   const calculatePrice = () => {
     if (bookingType === "hour") {
       return workspace.pricePerHour * hours;
@@ -217,6 +221,34 @@ export default function WorkspaceDetail() {
                     ))}
                   </div>
                 </div>
+
+                {/* Equipment */}
+                {equipment.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground mb-3">
+                      🛠️ Профессиональное оборудование
+                    </h3>
+                    <div className="space-y-3">
+                      {equipment.map((item: { name: string; brand: string; model?: string }, index: number) => (
+                        <div
+                          key={index}
+                          className="flex items-start gap-3 p-3 bg-accent/50 rounded-lg hover:bg-accent transition-colors"
+                        >
+                          <div className="w-2 h-2 mt-2 rounded-full bg-primary flex-shrink-0" />
+                          <div className="flex-1">
+                            <div className="font-medium text-foreground">{item.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              <span className="font-semibold text-primary">{item.brand}</span>
+                              {item.model && (
+                                <span className="ml-1">• {item.model}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Pricing */}
                 <div className="grid md:grid-cols-2 gap-4 pt-6 border-t border-border">

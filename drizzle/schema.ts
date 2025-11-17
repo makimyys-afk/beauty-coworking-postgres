@@ -51,6 +51,7 @@ export const workspaces = pgTable("workspaces", {
   pricePerDay: integer("pricePerDay").notNull(), // цена в рублях
   imageUrl: text("imageUrl"),
   amenities: text("amenities"), // JSON array of amenities
+  equipment: text("equipment"), // JSON array of equipment with brands: [{name: string, brand: string, model?: string}]
   isAvailable: boolean("isAvailable").default(true).notNull(),
   rating: numeric("rating", { precision: 3, scale: 1 }).default('0'), // рейтинг от 0 до 5 с одним знаком после запятой
   reviewCount: integer("reviewCount").default(0).notNull(),
