@@ -41,8 +41,9 @@ export const appRouter = router({
 
   // Bookings - бронирования
   bookings: router({
-    getUserBookings: publicProcedure.query(async () => {
-      return db.getUserBookings(MOCK_USER_ID);
+    getUserBookings: publicProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) throw new Error("Не авторизован");
+      return db.getUserBookings(ctx.user.id);
     }),
 
     getOccupiedSlots: publicProcedure
@@ -61,9 +62,12 @@ export const appRouter = router({
         endTime: z.coerce.date(),
         notes: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user) throw new Error("Не авторизован");
+        const userId = ctx.user.id;
+        
         // Вычисляем стоимость
-        const workspace = await db.getWorkspaceById(input.workspaceId, MOCK_USER_ID);
+        const workspace = await db.getWorkspaceById(input.workspaceId, userId);
         if (!workspace) {
           throw new Error("Workspace not found");
         }
@@ -72,7 +76,7 @@ export const appRouter = router({
         const totalPrice = workspace.pricePerHour * hours;
 
         // Проверяем достаточность средств
-        const balance = await db.getUserBalance(MOCK_USER_ID);
+        const balance = await db.getUserBalance(userId);
         if (balance < totalPrice) {
           throw new Error(`Недостаточно средств. Баланс: ${balance}₽, требуется: ${totalPrice}₽`);
         }
@@ -80,23 +84,23 @@ export const appRouter = router({
         // Создаем бронирование
         const bookingId = await db.createBooking({
           workspaceId: input.workspaceId,
-          userId: MOCK_USER_ID,
+          userId: userId,
           startTime: input.startTime,
           endTime: input.endTime,
           totalPrice,
           notes: input.notes,
           status: "confirmed",
           paymentStatus: "paid",
-        }, MOCK_USER_ID);
+        }, userId);
 
         // Автоматически создаем транзакцию оплаты
         await db.createTransaction({
-          userId: MOCK_USER_ID,
+          userId: userId,
           type: "payment",
           amount: -totalPrice,
           description: `Оплата бронирования #${bookingId}`,
           status: "completed",
-        }, MOCK_USER_ID);
+        }, userId);
 
         return { id: bookingId, totalPrice };
       }),
@@ -106,8 +110,9 @@ export const appRouter = router({
         bookingId: z.number(),
         status: z.enum(["pending", "confirmed", "cancelled", "completed"]),
       }))
-      .mutation(async ({ input }) => {
-        await db.updateBookingStatus(input.bookingId, input.status, MOCK_USER_ID);
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user) throw new Error("Не авторизован");
+        await db.updateBookingStatus(input.bookingId, input.status, ctx.user.id);
         return { success: true };
       }),
   }),
@@ -116,8 +121,9 @@ export const appRouter = router({
   reviews: router({
     getByWorkspace: publicProcedure
       .input(z.object({ workspaceId: z.number() }))
-      .query(async ({ input }) => {
-        return db.getWorkspaceReviews(input.workspaceId, MOCK_USER_ID);
+      .query(async ({ input, ctx }) => {
+        const userId = ctx.user?.id || 0;
+        return db.getWorkspaceReviews(input.workspaceId, userId);
       }),
 
     create: publicProcedure
@@ -127,14 +133,17 @@ export const appRouter = router({
         rating: z.number().min(1).max(5),
         comment: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user) throw new Error("Не авторизован");
+        const userId = ctx.user.id;
+        
         const reviewId = await db.createReview({
           workspaceId: input.workspaceId,
-          userId: MOCK_USER_ID,
+          userId: userId,
           bookingId: input.bookingId,
           rating: input.rating,
           comment: input.comment,
-        }, MOCK_USER_ID);
+        }, userId);
 
         return { id: reviewId };
       }),
@@ -142,12 +151,14 @@ export const appRouter = router({
 
   // Transactions - транзакции
   transactions: router({
-    getUserTransactions: publicProcedure.query(async () => {
-      return db.getUserTransactions(MOCK_USER_ID);
+    getUserTransactions: publicProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) throw new Error("Не авторизован");
+      return db.getUserTransactions(ctx.user.id);
     }),
 
-    getUserBalance: publicProcedure.query(async () => {
-      return db.getUserBalance(MOCK_USER_ID);
+    getUserBalance: publicProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) throw new Error("Не авторизован");
+      return db.getUserBalance(ctx.user.id);
     }),
 
     create: publicProcedure
@@ -156,14 +167,17 @@ export const appRouter = router({
         amount: z.number(),
         description: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user) throw new Error("Не авторизован");
+        const userId = ctx.user.id;
+        
         const transactionId = await db.createTransaction({
-          userId: MOCK_USER_ID,
+          userId: userId,
           type: input.type,
           amount: input.amount,
           status: "completed",
           description: input.description,
-        }, MOCK_USER_ID);
+        }, userId);
 
         return { id: transactionId };
       }),
@@ -188,8 +202,9 @@ export const appRouter = router({
 
   // Users - пользователи
   users: router({
-    getProfile: publicProcedure.query(async () => {
-      return db.getUserProfile(MOCK_USER_ID);
+    getProfile: publicProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) throw new Error("Не авторизован");
+      return db.getUserProfile(ctx.user.id);
     }),
   }),
 });
