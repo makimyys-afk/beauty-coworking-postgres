@@ -511,6 +511,7 @@ export async function updateUserStatus(userId: number): Promise<void> {
 }
 
 // Get occupied time slots for a workspace on a specific date
+// Returns array of {start, end} time strings in HH:MM format
 export async function getOccupiedTimeSlots(workspaceId: number, date: string) {
   const db = await getDb();
   if (!db) return [];
