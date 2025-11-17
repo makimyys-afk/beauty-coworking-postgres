@@ -5,20 +5,14 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
 
-// Mock user для автоматического входа
-const MOCK_USER_ID = 1;
-
 export const appRouter = router({
   system: systemRouter,
   
   auth: router({
-    me: publicProcedure.query(() => ({
-      id: MOCK_USER_ID,
-      openId: "mock-orlova-maria",
-      name: "Орлова Мария",
-      email: "orlova.maria@example.com",
-      role: "user" as const,
-    })),
+    me: publicProcedure.query(({ ctx }) => {
+      if (!ctx.user) throw new Error("Не авторизован");
+      return ctx.user;
+    }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
@@ -28,14 +22,14 @@ export const appRouter = router({
 
   // Workspaces - рабочие места
   workspaces: router({
-    getAll: publicProcedure.query(async () => {
-      return db.getAllWorkspaces(MOCK_USER_ID);
+    getAll: publicProcedure.query(async ({ ctx }) => {
+      return db.getAllWorkspaces(ctx.user?.id);
     }),
     
     getById: publicProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
-        return db.getWorkspaceById(input.id, MOCK_USER_ID);
+      .query(async ({ input, ctx }) => {
+        return db.getWorkspaceById(input.id, ctx.user?.id);
       }),
   }),
 
@@ -186,8 +180,8 @@ export const appRouter = router({
   // Stats - статистика
   stats: router({
     getUserStats: publicProcedure.query(async ({ ctx }) => {
-      const userId = ctx.user?.id || MOCK_USER_ID;
-      return db.getUserStats(userId);
+      if (!ctx.user) throw new Error("Не авторизован");
+      return db.getUserStats(ctx.user.id);
     }),
   }),
 
@@ -195,8 +189,8 @@ export const appRouter = router({
   logs: router({
     getSqlLogs: publicProcedure
       .input(z.object({ limit: z.number().default(100) }))
-      .query(async ({ input }) => {
-        return db.getSqlLogs(input.limit, MOCK_USER_ID);
+      .query(async ({ input, ctx }) => {
+        return db.getSqlLogs(input.limit, ctx.user?.id);
       }),
   }),
 
