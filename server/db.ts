@@ -168,13 +168,13 @@ export async function createBooking(booking: typeof bookings.$inferInsert, userI
   const result = await executeWithLogging(
     async () => {
       // Check for booking conflicts (same workspace, overlapping time)
+      // Note: booking.startTime and booking.endTime are timestamps
       const conflictingBookings = await db
         .select()
         .from(bookings)
         .where(
           and(
             eq(bookings.workspaceId, booking.workspaceId),
-            eq(bookings.date, booking.date),
             or(
               eq(bookings.status, 'confirmed'),
               eq(bookings.status, 'pending')
@@ -182,16 +182,21 @@ export async function createBooking(booking: typeof bookings.$inferInsert, userI
           )
         );
       
-      // Check if there's a time overlap
+      // Check if there's a time overlap with existing bookings
+      // booking.startTime and booking.endTime are Date objects (timestamps)
+      const newStart = new Date(booking.startTime).getTime();
+      const newEnd = new Date(booking.endTime).getTime();
+      
       for (const existing of conflictingBookings) {
-        const existingStart = parseInt(existing.startTime.split(':')[0]);
-        const existingEnd = parseInt(existing.endTime.split(':')[0]);
-        const newStart = parseInt(booking.startTime.split(':')[0]);
-        const newEnd = parseInt(booking.endTime.split(':')[0]);
+        const existingStart = new Date(existing.startTime).getTime();
+        const existingEnd = new Date(existing.endTime).getTime();
         
         // Check for overlap: new booking starts before existing ends AND new booking ends after existing starts
         if (newStart < existingEnd && newEnd > existingStart) {
-          throw new Error(`Это рабочее место уже забронировано на ${booking.date} с ${existing.startTime} до ${existing.endTime}`);
+          const existingDate = new Date(existing.startTime).toLocaleDateString('ru-RU');
+          const existingStartTime = new Date(existing.startTime).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+          const existingEndTime = new Date(existing.endTime).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+          throw new Error(`Это рабочее место уже забронировано на ${existingDate} с ${existingStartTime} до ${existingEndTime}`);
         }
       }
       
