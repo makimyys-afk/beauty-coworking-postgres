@@ -117,7 +117,7 @@ export function registerSimpleAuthRoutes(app: Express) {
 
   // Регистрация нового пользователя
   app.post("/api/auth/register", async (req: Request, res: Response) => {
-    const { email, password, name, phone } = req.body;
+    const { email, password, name, phone, specialization } = req.body;
 
     if (!email || !password || !name) {
       res.status(400).json({ error: "Email, пароль и имя обязательны" });
@@ -140,7 +140,8 @@ export function registerSimpleAuthRoutes(app: Express) {
         password,
         openId,
         name,
-        phone
+        phone,
+        specialization
       });
 
       // Создание пользователя в БД
@@ -149,6 +150,7 @@ export function registerSimpleAuthRoutes(app: Express) {
         name,
         email,
         phone,
+        specialization,
         loginMethod: "simple",
         lastSignedIn: new Date(),
       });

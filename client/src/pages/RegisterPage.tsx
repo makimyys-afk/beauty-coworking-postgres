@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function RegisterPage() {
   const [, setLocation] = useLocation();
@@ -13,6 +14,7 @@ export default function RegisterPage() {
     confirmPassword: "",
     name: "",
     phone: "",
+    specialization: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,6 +24,11 @@ export default function RegisterPage() {
     setError("");
 
     // Валидация
+    if (!formData.specialization) {
+      setError("Пожалуйста, выберите специализацию");
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError("Пароли не совпадают");
       return;
@@ -45,6 +52,7 @@ export default function RegisterPage() {
           password: formData.password,
           name: formData.name,
           phone: formData.phone,
+          specialization: formData.specialization,
         }),
       });
 
@@ -109,6 +117,33 @@ export default function RegisterPage() {
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 disabled={loading}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="specialization">Специализация *</Label>
+              <Select
+                value={formData.specialization}
+                onValueChange={(value) => setFormData({ ...formData, specialization: value })}
+                disabled={loading}
+                required
+              >
+                <SelectTrigger id="specialization">
+                  <SelectValue placeholder="Выберите специализацию" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Парикмахер">💇 Парикмахер</SelectItem>
+                  <SelectItem value="Стилист">✂️ Стилист</SelectItem>
+                  <SelectItem value="Визажист">💄 Визажист</SelectItem>
+                  <SelectItem value="Мастер маникюра">💅 Мастер маникюра</SelectItem>
+                  <SelectItem value="Мастер педикюра">🦶 Мастер педикюра</SelectItem>
+                  <SelectItem value="Косметолог">🧚 Косметолог</SelectItem>
+                  <SelectItem value="Массажист">💆 Массажист</SelectItem>
+                  <SelectItem value="Brow-мастер">👁️ Brow-мастер</SelectItem>
+                  <SelectItem value="Lash-мастер">👁️ Lash-мастер</SelectItem>
+                  <SelectItem value="Барбер">👨‍🦲 Барбер</SelectItem>
+                  <SelectItem value="Татуаж мастер">🖌️ Татуаж мастер</SelectItem>
+                  <SelectItem value="Другое">✨ Другое</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Пароль</Label>
