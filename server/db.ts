@@ -517,6 +517,10 @@ export async function getOccupiedTimeSlots(workspaceId: number, date: string) {
 
   return executeWithLogging(
     async () => {
+      // Parse date string to get start and end of day
+      const startOfDay = new Date(`${date}T00:00:00`);
+      const endOfDay = new Date(`${date}T23:59:59`);
+
       const occupiedBookings = await db
         .select({
           startTime: bookings.startTime,
@@ -526,7 +530,8 @@ export async function getOccupiedTimeSlots(workspaceId: number, date: string) {
         .where(
           and(
             eq(bookings.workspaceId, workspaceId),
-            eq(bookings.date, date),
+            gte(bookings.startTime, startOfDay),
+            lte(bookings.startTime, endOfDay),
             or(
               eq(bookings.status, 'confirmed'),
               eq(bookings.status, 'pending')
@@ -534,10 +539,15 @@ export async function getOccupiedTimeSlots(workspaceId: number, date: string) {
           )
         );
 
-      return occupiedBookings.map(booking => ({
-        start: booking.startTime,
-        end: booking.endTime,
-      }));
+      return occupiedBookings.map(booking => {
+        // Format timestamps to HH:MM
+        const start = new Date(booking.startTime);
+        const end = new Date(booking.endTime);
+        return {
+          start: `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')}`,
+          end: `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`,
+        };
+      });
     },
     `SELECT occupied time slots for workspace ${workspaceId} on ${date}`,
     undefined,
