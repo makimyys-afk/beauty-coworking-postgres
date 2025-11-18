@@ -76,7 +76,7 @@ export const appRouter = router({
         }
 
         // Создаем бронирование
-        const bookingId = await db.createBooking({
+        const booking = await db.createBooking({
           workspaceId: input.workspaceId,
           userId: userId,
           startTime: input.startTime,
@@ -87,16 +87,16 @@ export const appRouter = router({
           paymentStatus: "paid",
         }, userId);
 
-        // Автоматически создаем транзакцию оплаты
+        // Автоматически создаем транзакцию оплаты на итоговую цену (с учетом скидки)
         await db.createTransaction({
           userId: userId,
           type: "payment",
-          amount: -totalPrice,
-          description: `Оплата бронирования #${bookingId}`,
+          amount: -booking.finalPrice,
+          description: `Оплата бронирования #${booking.id}`,
           status: "completed",
         }, userId);
 
-        return { id: bookingId, totalPrice };
+        return { id: booking.id, totalPrice: booking.finalPrice };
       }),
 
     updateStatus: publicProcedure

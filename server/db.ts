@@ -161,7 +161,7 @@ export async function getUserBookings(userId: number) {
   );
 }
 
-export async function createBooking(booking: typeof bookings.$inferInsert, userId?: number): Promise<number> {
+export async function createBooking(booking: typeof bookings.$inferInsert, userId?: number): Promise<{ id: number; finalPrice: number }> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
@@ -256,7 +256,7 @@ export async function createBooking(booking: typeof bookings.$inferInsert, userI
         }
       }
       
-      return inserted.id;
+      return { id: inserted.id, finalPrice: discountedPrice };
     },
     `INSERT INTO bookings VALUES (...)`,
     userId,
