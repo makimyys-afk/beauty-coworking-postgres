@@ -17,7 +17,7 @@ import { useLocation } from "wouter";
 import { toast } from "sonner";
 
 export default function Finances() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
 
   const { data: balance } = trpc.transactions.getUserBalance.useQuery(undefined, {
@@ -27,6 +27,15 @@ export default function Finances() {
   const { data: transactions, isLoading } = trpc.transactions.getUserTransactions.useQuery(undefined, {
     enabled: isAuthenticated,
   });
+
+  // Wait for auth to load before redirecting
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     setLocation("/");
