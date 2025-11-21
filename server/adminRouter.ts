@@ -533,8 +533,23 @@ export function registerAdminRoutes(app: Express) {
       }
 
       const allBookings = await database
-        .select()
+        .select({
+          id: bookings.id,
+          workspaceId: bookings.workspaceId,
+          workspaceName: workspaces.name,
+          userId: bookings.userId,
+          userName: users.name,
+          startTime: bookings.startTime,
+          endTime: bookings.endTime,
+          status: bookings.status,
+          totalPrice: bookings.totalPrice,
+          paymentStatus: bookings.paymentStatus,
+          notes: bookings.notes,
+          createdAt: bookings.createdAt,
+        })
         .from(bookings)
+        .leftJoin(workspaces, eq(bookings.workspaceId, workspaces.id))
+        .leftJoin(users, eq(bookings.userId, users.id))
         .orderBy(desc(bookings.createdAt));
       res.json(allBookings);
     } catch (error) {
@@ -602,6 +617,49 @@ export function registerAdminRoutes(app: Express) {
     } catch (error) {
       console.error("[Admin] Failed to delete booking:", error);
       res.status(500).json({ error: "Ошибка удаления бронирования" });
+    }
+  });
+
+  app.put("/api/admin/bookings/:id/status", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const bookingId = parseInt(req.params.id);
+      const { status } = req.body;
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+      await database.update(bookings)
+        .set({ status: status as any, updatedAt: new Date() })
+        .where(eq(bookings.id, bookingId));
+      
+      const adminUser = (req as any).user;
+      await logAdminAction(database, adminUser.id, "update", "booking", bookingId, { status });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Admin] Failed to update booking status:", error);
+      res.status(500).json({ error: "Ошибка обновления статуса" });
+    }
+  });
+
+  app.put("/api/admin/bookings/:id/payment", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const bookingId = parseInt(req.params.id);
+      const { paymentStatus } = req.body;
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+      await database.update(bookings)
+        .set({ paymentStatus: paymentStatus as any, updatedAt: new Date() })
+        .where(eq(bookings.id, bookingId));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Admin] Failed to update payment status:", error);
+      res.status(500).json({ error: "Ошибка обновления статуса оплаты" });
     }
   });
 
