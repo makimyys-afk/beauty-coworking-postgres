@@ -108,7 +108,7 @@ export default function Finances() {
             <p className="text-white/80">Текущий баланс</p>
           </div>
           <h2 className="text-4xl font-bold mb-6">
-            {((balance || 0) / 100).toFixed(0)} ₽
+            {(balance || 0).toFixed(2)} ₽
           </h2>
           <Button
             onClick={handleTopUp}
@@ -131,7 +131,7 @@ export default function Finances() {
               </span>
             </div>
             <p className="text-2xl font-bold text-foreground">
-              {income}₽
+              {income.toFixed(2)} ₽
             </p>
             <p className="text-xs text-muted-foreground mt-1">за месяц</p>
           </Card>
@@ -146,7 +146,7 @@ export default function Finances() {
               </span>
             </div>
             <p className="text-2xl font-bold text-foreground">
-              {expenses}₽
+              {Math.abs(expenses).toFixed(2)} ₽
             </p>
             <p className="text-xs text-muted-foreground mt-1">за месяц</p>
           </Card>
@@ -216,8 +216,8 @@ export default function Finances() {
                                 : "text-foreground"
                             }`}
                           >
-                            {transaction.type === "deposit" || transaction.type === "refund" ? "+" : "-"}
-                            {transaction.amount}₽
+                            {transaction.type === "deposit" || transaction.type === "refund" ? "+" : ""}
+                            {transaction.amount.toFixed(2)} ₽
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {formatDate(transaction.createdAt)}
@@ -282,7 +282,7 @@ export default function Finances() {
                         </div>
                         <div className="text-right">
                           <p className="text-2xl font-bold text-foreground mb-2">
-                            {invoice.amount}₽
+                            {Math.abs(invoice.amount).toFixed(2)} ₽
                           </p>
                           <Button
                             onClick={() => handlePayInvoice(invoice.id)}
