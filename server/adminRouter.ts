@@ -520,10 +520,198 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  // Добавьте аналогичные CRUD операции для остальных таблиц:
-  // - contracts, accessPasses, serviceRecords, invoices, payments
-  // - maintenanceRequests, staff, financialReports, incidentRegistry
-  // - notifications, promotions, workSchedule
+  // ============================================================================
+  // BOOKINGS
+  // ============================================================================
   
-  // Структура будет аналогичной: GET (list), POST (create), PUT (update), DELETE (delete)
+  app.get("/api/admin/bookings", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+
+      const allBookings = await database
+        .select()
+        .from(bookings)
+        .orderBy(desc(bookings.createdAt));
+      res.json(allBookings);
+    } catch (error) {
+      console.error("[Admin] Failed to fetch bookings:", error);
+      res.status(500).json({ error: "Ошибка получения бронирований" });
+    }
+  });
+
+  app.put("/api/admin/bookings/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+
+      const id = parseInt(req.params.id);
+      const adminUser = (req as any).user;
+      
+      const [updated] = await database
+        .update(bookings)
+        .set({
+          ...req.body,
+          updatedAt: new Date(),
+        })
+        .where(eq(bookings.id, id))
+        .returning();
+
+      if (!updated) {
+        res.status(404).json({ error: "Бронирование не найдено" });
+        return;
+      }
+
+      await logAdminAction(database, adminUser.id, "update", "booking", id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("[Admin] Failed to update booking:", error);
+      res.status(500).json({ error: "Ошибка обновления бронирования" });
+    }
+  });
+
+  app.delete("/api/admin/bookings/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+
+      const id = parseInt(req.params.id);
+      const adminUser = (req as any).user;
+      
+      const [deleted] = await database
+        .delete(bookings)
+        .where(eq(bookings.id, id))
+        .returning();
+
+      if (!deleted) {
+        res.status(404).json({ error: "Бронирование не найдено" });
+        return;
+      }
+
+      await logAdminAction(database, adminUser.id, "delete", "booking", id, {});
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Admin] Failed to delete booking:", error);
+      res.status(500).json({ error: "Ошибка удаления бронирования" });
+    }
+  });
+
+  // ============================================================================
+  // REVIEWS
+  // ============================================================================
+
+  app.get("/api/admin/reviews", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+
+      const allReviews = await database
+        .select()
+        .from(reviews)
+        .orderBy(desc(reviews.createdAt));
+      res.json(allReviews);
+    } catch (error) {
+      console.error("[Admin] Failed to fetch reviews:", error);
+      res.status(500).json({ error: "Ошибка получения отзывов" });
+    }
+  });
+
+  app.put("/api/admin/reviews/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+
+      const id = parseInt(req.params.id);
+      const adminUser = (req as any).user;
+      
+      const [updated] = await database
+        .update(reviews)
+        .set({
+          ...req.body,
+          updatedAt: new Date(),
+        })
+        .where(eq(reviews.id, id))
+        .returning();
+
+      if (!updated) {
+        res.status(404).json({ error: "Отзыв не найден" });
+        return;
+      }
+
+      await logAdminAction(database, adminUser.id, "update", "review", id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("[Admin] Failed to update review:", error);
+      res.status(500).json({ error: "Ошибка обновления отзыва" });
+    }
+  });
+
+  app.delete("/api/admin/reviews/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+
+      const id = parseInt(req.params.id);
+      const adminUser = (req as any).user;
+      
+      const [deleted] = await database
+        .delete(reviews)
+        .where(eq(reviews.id, id))
+        .returning();
+
+      if (!deleted) {
+        res.status(404).json({ error: "Отзыв не найден" });
+        return;
+      }
+
+      await logAdminAction(database, adminUser.id, "delete", "review", id, {});
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Admin] Failed to delete review:", error);
+      res.status(500).json({ error: "Ошибка удаления отзыва" });
+    }
+  });
+
+  // ============================================================================
+  // TRANSACTIONS
+  // ============================================================================
+
+  app.get("/api/admin/transactions", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+
+      const allTransactions = await database
+        .select()
+        .from(transactions)
+        .orderBy(desc(transactions.createdAt));
+      res.json(allTransactions);
+    } catch (error) {
+      console.error("[Admin] Failed to fetch transactions:", error);
+      res.status(500).json({ error: "Ошибка получения транзакций" });
+    }
+  });
+
+  // Additional CRUD endpoints for other tables can be added similarly
 }
