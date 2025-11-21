@@ -1,8 +1,13 @@
-import type { Express, Request, Response } from "express";
+import { Express, Request, Response } from "express";
 import * as db from "./db";
 import { sdk } from "./_core/sdk";
-import { eq, sql } from "drizzle-orm";
-import { users, workspaces, bookings, reviews, transactions, adminLogs } from "../drizzle/schema";
+import { eq, sql, desc } from "drizzle-orm";
+import {
+  users, workspaces, bookings, reviews, transactions, adminLogs,
+  tariffs, equipment, materials, contracts, accessPasses, serviceRecords,
+  invoices, payments, maintenanceRequests, staff, financialReports,
+  incidentRegistry, notifications, promotions, workSchedule
+} from "../drizzle/schema";
 
 // Middleware для проверки прав администратора
 async function requireAdmin(req: Request, res: Response, next: Function) {
@@ -15,7 +20,6 @@ async function requireAdmin(req: Request, res: Response, next: Function) {
       return;
     }
     
-    // Сохраняем пользователя в request для дальнейшего использования
     (req as any).user = dbUser;
     next();
   } catch (error) {
@@ -23,8 +27,33 @@ async function requireAdmin(req: Request, res: Response, next: Function) {
   }
 }
 
+// Функция для логирования действий администратора
+async function logAdminAction(
+  database: any,
+  adminId: number,
+  action: string,
+  entityType: string,
+  entityId: number | null,
+  details: any
+) {
+  try {
+    await database.insert(adminLogs).values({
+      adminId,
+      action: action as any,
+      entityType,
+      entityId,
+      details: JSON.stringify(details),
+    });
+  } catch (error) {
+    console.error("[Admin] Failed to log action:", error);
+  }
+}
+
 export function registerAdminRoutes(app: Express) {
-  // Статистика для дашборда
+  // ============================================================================
+  // DASHBOARD STATS
+  // ============================================================================
+  
   app.get("/api/admin/stats", requireAdmin, async (req: Request, res: Response) => {
     try {
       const database = await db.getDb();
@@ -58,7 +87,10 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  // === USERS ===
+  // ============================================================================
+  // USERS
+  // ============================================================================
+  
   app.get("/api/admin/users", requireAdmin, async (req: Request, res: Response) => {
     try {
       const database = await db.getDb();
@@ -78,7 +110,7 @@ export function registerAdminRoutes(app: Express) {
   app.put("/api/admin/users/:id", requireAdmin, async (req: Request, res: Response) => {
     try {
       const userId = parseInt(req.params.id);
-      const { name, email, phone, points } = req.body;
+      const updateData = req.body;
 
       const database = await db.getDb();
       if (!database) {
@@ -86,19 +118,10 @@ export function registerAdminRoutes(app: Express) {
         return;
       }
 
-      await database.update(users)
-        .set({ name, email, phone, points })
-        .where(eq(users.id, userId));
+      await database.update(users).set(updateData).where(eq(users.id, userId));
 
-      // Log admin action
       const adminUser = (req as any).user;
-      await database.insert(adminLogs).values({
-        adminId: adminUser.id,
-        action: "user_updated",
-        entityType: "user",
-        entityId: userId,
-        details: JSON.stringify({ name, email, phone, points }),
-      });
+      await logAdminAction(database, adminUser.id, "user_updated", "user", userId, updateData);
 
       res.json({ success: true });
     } catch (error) {
@@ -117,19 +140,11 @@ export function registerAdminRoutes(app: Express) {
         return;
       }
 
-      // Log admin action before deletion
-      const adminUser = (req as any).user;
-      const [userToDelete] = await database.select().from(users).where(eq(users.id, userId));
-      
-      await database.insert(adminLogs).values({
-        adminId: adminUser.id,
-        action: "user_deleted",
-        entityType: "user",
-        entityId: userId,
-        details: JSON.stringify({ name: userToDelete?.name, email: userToDelete?.email }),
-      });
-
       await database.delete(users).where(eq(users.id, userId));
+
+      const adminUser = (req as any).user;
+      await logAdminAction(database, adminUser.id, "user_deleted", "user", userId, {});
+
       res.json({ success: true });
     } catch (error) {
       console.error("[Admin] Failed to delete user:", error);
@@ -137,10 +152,19 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  // === WORKSPACES ===
+  // ============================================================================
+  // WORKSPACES
+  // ============================================================================
+  
   app.get("/api/admin/workspaces", requireAdmin, async (req: Request, res: Response) => {
     try {
-      const allWorkspaces = await db.getAllWorkspaces();
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+
+      const allWorkspaces = await database.select().from(workspaces).orderBy(workspaces.id);
       res.json(allWorkspaces);
     } catch (error) {
       console.error("[Admin] Failed to fetch workspaces:", error);
@@ -150,7 +174,7 @@ export function registerAdminRoutes(app: Express) {
 
   app.post("/api/admin/workspaces", requireAdmin, async (req: Request, res: Response) => {
     try {
-      const { name, description, type, pricePerHour, pricePerDay, imageUrl, isAvailable } = req.body;
+      const workspaceData = req.body;
 
       const database = await db.getDb();
       if (!database) {
@@ -158,25 +182,10 @@ export function registerAdminRoutes(app: Express) {
         return;
       }
 
-      const [newWorkspace] = await database.insert(workspaces).values({
-        name,
-        description,
-        type,
-        pricePerHour,
-        pricePerDay,
-        imageUrl,
-        isAvailable: isAvailable ?? true,
-      }).returning();
+      const [newWorkspace] = await database.insert(workspaces).values(workspaceData).returning();
 
-      // Log admin action
       const adminUser = (req as any).user;
-      await database.insert(adminLogs).values({
-        adminId: adminUser.id,
-        action: "workspace_created",
-        entityType: "workspace",
-        entityId: newWorkspace.id,
-        details: JSON.stringify({ name, type, pricePerHour }),
-      });
+      await logAdminAction(database, adminUser.id, "workspace_created", "workspace", newWorkspace.id, workspaceData);
 
       res.json(newWorkspace);
     } catch (error) {
@@ -188,7 +197,7 @@ export function registerAdminRoutes(app: Express) {
   app.put("/api/admin/workspaces/:id", requireAdmin, async (req: Request, res: Response) => {
     try {
       const workspaceId = parseInt(req.params.id);
-      const { name, description, type, pricePerHour, pricePerDay, imageUrl, isAvailable } = req.body;
+      const updateData = req.body;
 
       const database = await db.getDb();
       if (!database) {
@@ -196,28 +205,10 @@ export function registerAdminRoutes(app: Express) {
         return;
       }
 
-      await database.update(workspaces)
-        .set({
-          name,
-          description,
-          type,
-          pricePerHour,
-          pricePerDay,
-          imageUrl,
-          isAvailable,
-          updatedAt: new Date(),
-        })
-        .where(eq(workspaces.id, workspaceId));
+      await database.update(workspaces).set(updateData).where(eq(workspaces.id, workspaceId));
 
-      // Log admin action
       const adminUser = (req as any).user;
-      await database.insert(adminLogs).values({
-        adminId: adminUser.id,
-        action: "workspace_updated",
-        entityType: "workspace",
-        entityId: workspaceId,
-        details: JSON.stringify({ name, type, pricePerHour }),
-      });
+      await logAdminAction(database, adminUser.id, "workspace_updated", "workspace", workspaceId, updateData);
 
       res.json({ success: true });
     } catch (error) {
@@ -236,19 +227,11 @@ export function registerAdminRoutes(app: Express) {
         return;
       }
 
-      // Log admin action before deletion
-      const adminUser = (req as any).user;
-      const [workspaceToDelete] = await database.select().from(workspaces).where(eq(workspaces.id, workspaceId));
-      
-      await database.insert(adminLogs).values({
-        adminId: adminUser.id,
-        action: "workspace_deleted",
-        entityType: "workspace",
-        entityId: workspaceId,
-        details: JSON.stringify({ name: workspaceToDelete?.name }),
-      });
-
       await database.delete(workspaces).where(eq(workspaces.id, workspaceId));
+
+      const adminUser = (req as any).user;
+      await logAdminAction(database, adminUser.id, "workspace_deleted", "workspace", workspaceId, {});
+
       res.json({ success: true });
     } catch (error) {
       console.error("[Admin] Failed to delete workspace:", error);
@@ -256,8 +239,11 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  // === BOOKINGS ===
-  app.get("/api/admin/bookings", requireAdmin, async (req: Request, res: Response) => {
+  // ============================================================================
+  // TARIFFS
+  // ============================================================================
+  
+  app.get("/api/admin/tariffs", requireAdmin, async (req: Request, res: Response) => {
     try {
       const database = await db.getDb();
       if (!database) {
@@ -265,37 +251,17 @@ export function registerAdminRoutes(app: Express) {
         return;
       }
 
-      const allBookings = await database
-        .select({
-          id: bookings.id,
-          workspaceId: bookings.workspaceId,
-          workspaceName: workspaces.name,
-          userId: bookings.userId,
-          userName: users.name,
-          startTime: bookings.startTime,
-          endTime: bookings.endTime,
-          status: bookings.status,
-          totalPrice: bookings.totalPrice,
-          paymentStatus: bookings.paymentStatus,
-          notes: bookings.notes,
-          createdAt: bookings.createdAt,
-        })
-        .from(bookings)
-        .leftJoin(workspaces, eq(bookings.workspaceId, workspaces.id))
-        .leftJoin(users, eq(bookings.userId, users.id))
-        .orderBy(bookings.id);
-
-      res.json(allBookings);
+      const allTariffs = await database.select().from(tariffs).orderBy(tariffs.id);
+      res.json(allTariffs);
     } catch (error) {
-      console.error("[Admin] Failed to fetch bookings:", error);
-      res.status(500).json({ error: "Ошибка получения бронирований" });
+      console.error("[Admin] Failed to fetch tariffs:", error);
+      res.status(500).json({ error: "Ошибка получения тарифов" });
     }
   });
 
-  app.put("/api/admin/bookings/:id/status", requireAdmin, async (req: Request, res: Response) => {
+  app.post("/api/admin/tariffs", requireAdmin, async (req: Request, res: Response) => {
     try {
-      const bookingId = parseInt(req.params.id);
-      const { status } = req.body;
+      const tariffData = req.body;
 
       const database = await db.getDb();
       if (!database) {
@@ -303,31 +269,22 @@ export function registerAdminRoutes(app: Express) {
         return;
       }
 
-      await database.update(bookings)
-        .set({ status, updatedAt: new Date() })
-        .where(eq(bookings.id, bookingId));
+      const [newTariff] = await database.insert(tariffs).values(tariffData).returning();
 
-      // Log admin action
       const adminUser = (req as any).user;
-      await database.insert(adminLogs).values({
-        adminId: adminUser.id,
-        action: "booking_updated",
-        entityType: "booking",
-        entityId: bookingId,
-        details: JSON.stringify({ status }),
-      });
+      await logAdminAction(database, adminUser.id, "tariff_created", "tariff", newTariff.id, tariffData);
 
-      res.json({ success: true });
+      res.json(newTariff);
     } catch (error) {
-      console.error("[Admin] Failed to update booking status:", error);
-      res.status(500).json({ error: "Ошибка обновления статуса бронирования" });
+      console.error("[Admin] Failed to create tariff:", error);
+      res.status(500).json({ error: "Ошибка создания тарифа" });
     }
   });
 
-  app.put("/api/admin/bookings/:id/payment", requireAdmin, async (req: Request, res: Response) => {
+  app.put("/api/admin/tariffs/:id", requireAdmin, async (req: Request, res: Response) => {
     try {
-      const bookingId = parseInt(req.params.id);
-      const { paymentStatus } = req.body;
+      const tariffId = parseInt(req.params.id);
+      const updateData = req.body;
 
       const database = await db.getDb();
       if (!database) {
@@ -335,19 +292,45 @@ export function registerAdminRoutes(app: Express) {
         return;
       }
 
-      await database.update(bookings)
-        .set({ paymentStatus, updatedAt: new Date() })
-        .where(eq(bookings.id, bookingId));
+      await database.update(tariffs).set(updateData).where(eq(tariffs.id, tariffId));
+
+      const adminUser = (req as any).user;
+      await logAdminAction(database, adminUser.id, "tariff_updated", "tariff", tariffId, updateData);
 
       res.json({ success: true });
     } catch (error) {
-      console.error("[Admin] Failed to update payment status:", error);
-      res.status(500).json({ error: "Ошибка обновления статуса оплаты" });
+      console.error("[Admin] Failed to update tariff:", error);
+      res.status(500).json({ error: "Ошибка обновления тарифа" });
     }
   });
 
-  // === LOGS ===
-  app.get("/api/admin/logs/recent", requireAdmin, async (req: Request, res: Response) => {
+  app.delete("/api/admin/tariffs/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const tariffId = parseInt(req.params.id);
+
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+
+      await database.delete(tariffs).where(eq(tariffs.id, tariffId));
+
+      const adminUser = (req as any).user;
+      await logAdminAction(database, adminUser.id, "tariff_deleted", "tariff", tariffId, {});
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Admin] Failed to delete tariff:", error);
+      res.status(500).json({ error: "Ошибка удаления тарифа" });
+    }
+  });
+
+  // ============================================================================
+  // EQUIPMENT
+  // ============================================================================
+  
+  app.get("/api/admin/equipment", requireAdmin, async (req: Request, res: Response) => {
     try {
       const database = await db.getDb();
       if (!database) {
@@ -355,112 +338,192 @@ export function registerAdminRoutes(app: Express) {
         return;
       }
 
-      const recentLogs = await database
-        .select({
-          id: adminLogs.id,
-          adminId: adminLogs.adminId,
-          action: adminLogs.action,
-          entityType: adminLogs.entityType,
-          entityId: adminLogs.entityId,
-          details: adminLogs.details,
-          createdAt: adminLogs.createdAt,
-          adminName: users.name,
-        })
-        .from(adminLogs)
-        .leftJoin(users, eq(adminLogs.adminId, users.id))
-        .orderBy(sql`${adminLogs.createdAt} DESC`)
-        .limit(10);
-
-      res.json(recentLogs);
+      const allEquipment = await database.select().from(equipment).orderBy(equipment.id);
+      res.json(allEquipment);
     } catch (error) {
-      console.error("[Admin] Failed to fetch recent logs:", error);
+      console.error("[Admin] Failed to fetch equipment:", error);
+      res.status(500).json({ error: "Ошибка получения оборудования" });
+    }
+  });
+
+  app.post("/api/admin/equipment", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const equipmentData = req.body;
+
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+
+      const [newEquipment] = await database.insert(equipment).values(equipmentData).returning();
+
+      const adminUser = (req as any).user;
+      await logAdminAction(database, adminUser.id, "equipment_created", "equipment", newEquipment.id, equipmentData);
+
+      res.json(newEquipment);
+    } catch (error) {
+      console.error("[Admin] Failed to create equipment:", error);
+      res.status(500).json({ error: "Ошибка создания оборудования" });
+    }
+  });
+
+  app.put("/api/admin/equipment/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const equipmentId = parseInt(req.params.id);
+      const updateData = req.body;
+
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+
+      await database.update(equipment).set(updateData).where(eq(equipment.id, equipmentId));
+
+      const adminUser = (req as any).user;
+      await logAdminAction(database, adminUser.id, "equipment_updated", "equipment", equipmentId, updateData);
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Admin] Failed to update equipment:", error);
+      res.status(500).json({ error: "Ошибка обновления оборудования" });
+    }
+  });
+
+  app.delete("/api/admin/equipment/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const equipmentId = parseInt(req.params.id);
+
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+
+      await database.delete(equipment).where(eq(equipment.id, equipmentId));
+
+      const adminUser = (req as any).user;
+      await logAdminAction(database, adminUser.id, "equipment_deleted", "equipment", equipmentId, {});
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Admin] Failed to delete equipment:", error);
+      res.status(500).json({ error: "Ошибка удаления оборудования" });
+    }
+  });
+
+  // ============================================================================
+  // MATERIALS
+  // ============================================================================
+  
+  app.get("/api/admin/materials", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+
+      const allMaterials = await database.select().from(materials).orderBy(materials.id);
+      res.json(allMaterials);
+    } catch (error) {
+      console.error("[Admin] Failed to fetch materials:", error);
+      res.status(500).json({ error: "Ошибка получения материалов" });
+    }
+  });
+
+  app.post("/api/admin/materials", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const materialData = req.body;
+
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+
+      const [newMaterial] = await database.insert(materials).values(materialData).returning();
+
+      const adminUser = (req as any).user;
+      await logAdminAction(database, adminUser.id, "material_created", "material", newMaterial.id, materialData);
+
+      res.json(newMaterial);
+    } catch (error) {
+      console.error("[Admin] Failed to create material:", error);
+      res.status(500).json({ error: "Ошибка создания материала" });
+    }
+  });
+
+  app.put("/api/admin/materials/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const materialId = parseInt(req.params.id);
+      const updateData = req.body;
+
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+
+      await database.update(materials).set(updateData).where(eq(materials.id, materialId));
+
+      const adminUser = (req as any).user;
+      await logAdminAction(database, adminUser.id, "material_updated", "material", materialId, updateData);
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Admin] Failed to update material:", error);
+      res.status(500).json({ error: "Ошибка обновления материала" });
+    }
+  });
+
+  app.delete("/api/admin/materials/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const materialId = parseInt(req.params.id);
+
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+
+      await database.delete(materials).where(eq(materials.id, materialId));
+
+      const adminUser = (req as any).user;
+      await logAdminAction(database, adminUser.id, "material_deleted", "material", materialId, {});
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Admin] Failed to delete material:", error);
+      res.status(500).json({ error: "Ошибка удаления материала" });
+    }
+  });
+
+  // ============================================================================
+  // ADMIN LOGS
+  // ============================================================================
+  
+  app.get("/api/admin/logs", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const database = await db.getDb();
+      if (!database) {
+        res.status(500).json({ error: "Database not available" });
+        return;
+      }
+
+      const logs = await database.select().from(adminLogs).orderBy(desc(adminLogs.createdAt)).limit(1000);
+      res.json(logs);
+    } catch (error) {
+      console.error("[Admin] Failed to fetch logs:", error);
       res.status(500).json({ error: "Ошибка получения логов" });
     }
   });
 
-  // === REVIEWS ===
-  app.get("/api/admin/reviews", requireAdmin, async (req: Request, res: Response) => {
-    try {
-      const database = await db.getDb();
-      if (!database) {
-        res.status(500).json({ error: "Database not available" });
-        return;
-      }
-
-      const allReviews = await database
-        .select({
-          id: reviews.id,
-          workspaceId: reviews.workspaceId,
-          workspaceName: workspaces.name,
-          userId: reviews.userId,
-          userName: users.name,
-          rating: reviews.rating,
-          comment: reviews.comment,
-          createdAt: reviews.createdAt,
-        })
-        .from(reviews)
-        .leftJoin(workspaces, eq(reviews.workspaceId, workspaces.id))
-        .leftJoin(users, eq(reviews.userId, users.id))
-        .orderBy(reviews.id);
-
-      res.json(allReviews);
-    } catch (error) {
-      console.error("[Admin] Failed to fetch reviews:", error);
-      res.status(500).json({ error: "Ошибка получения отзывов" });
-    }
-  });
-
-  app.delete("/api/admin/reviews/:id", requireAdmin, async (req: Request, res: Response) => {
-    try {
-      const reviewId = parseInt(req.params.id);
-
-      const database = await db.getDb();
-      if (!database) {
-        res.status(500).json({ error: "Database not available" });
-        return;
-      }
-
-      // Получаем информацию об отзыве перед удалением
-      const [review] = await database.select().from(reviews).where(eq(reviews.id, reviewId));
-      const adminUser = (req as any).user;
-      
-      if (review) {
-        // Log admin action
-        await database.insert(adminLogs).values({
-          adminId: adminUser.id,
-          action: "review_deleted",
-          entityType: "review",
-          entityId: reviewId,
-          details: JSON.stringify({ workspaceId: review.workspaceId, rating: review.rating }),
-        });
-        // Удаляем отзыв
-        await database.delete(reviews).where(eq(reviews.id, reviewId));
-        
-        // Пересчитываем рейтинг рабочего места
-        const workspaceReviews = await database.select().from(reviews).where(eq(reviews.workspaceId, review.workspaceId));
-        
-        if (workspaceReviews.length > 0) {
-          const avgRating = workspaceReviews.reduce((sum, r) => sum + r.rating, 0) / workspaceReviews.length;
-          await database.update(workspaces)
-            .set({
-              rating: avgRating.toFixed(1),
-              reviewCount: workspaceReviews.length,
-            })
-            .where(eq(workspaces.id, review.workspaceId));
-        } else {
-          await database.update(workspaces)
-            .set({
-              rating: '0',
-              reviewCount: 0,
-            })
-            .where(eq(workspaces.id, review.workspaceId));
-        }
-      }
-
-      res.json({ success: true });
-    } catch (error) {
-      console.error("[Admin] Failed to delete review:", error);
-      res.status(500).json({ error: "Ошибка удаления отзыва" });
-    }
-  });
+  // Добавьте аналогичные CRUD операции для остальных таблиц:
+  // - contracts, accessPasses, serviceRecords, invoices, payments
+  // - maintenanceRequests, staff, financialReports, incidentRegistry
+  // - notifications, promotions, workSchedule
+  
+  // Структура будет аналогичной: GET (list), POST (create), PUT (update), DELETE (delete)
 }
