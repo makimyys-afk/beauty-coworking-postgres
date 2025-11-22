@@ -369,13 +369,16 @@ export async function getUserTransactions(userId: number): Promise<Transaction[]
   const db = await getDb();
   if (!db) return [];
 
-  return executeWithLogging(
+  const result = await executeWithLogging(
     () => db.select().from(transactions).where(eq(transactions.userId, userId)).orderBy(desc(transactions.createdAt)),
     `SELECT * FROM transactions WHERE userId = ${userId} ORDER BY createdAt DESC`,
     userId,
     "transactions.getUserTransactions",
     { userId }
   );
+  
+  // Преобразуем amount в число, так как DECIMAL возвращается как строка
+  return result.map(t => ({ ...t, amount: Number(t.amount) }));
 }
 
 export async function createTransaction(transaction: typeof transactions.$inferInsert, userId?: number): Promise<number> {
@@ -416,7 +419,8 @@ export async function getUserBalance(userId: number): Promise<number> {
       const userTransactions = await db.select().from(transactions).where(eq(transactions.userId, userId));
       
       // amount уже содержит знак: положительный для deposit/refund, отрицательный для payment/withdrawal
-      return userTransactions.reduce((balance, t) => balance + t.amount, 0);
+      // Преобразуем amount в число, так как DECIMAL возвращается как строка
+      return userTransactions.reduce((balance, t) => balance + Number(t.amount), 0);
     },
     `SELECT and calculate balance from transactions WHERE userId = ${userId}`,
     userId,
