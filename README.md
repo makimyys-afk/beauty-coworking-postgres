@@ -1,212 +1,90 @@
-# 🏢 Бьюти-коворкинг
+# Beauty Coworking
 
-Современное веб-приложение для управления бронированиями рабочих мест в бьюти-коворкинге.
+A modern web application for managing workspace bookings in a beauty coworking space.
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/new)
+## Features
 
-## 🚀 Возможности
+*   **Workspace Catalog**: Filterable by categories.
+*   **Booking System**: Includes QR code generation for bookings.
+*   **Financial System**: Automated transactions.
+*   **User Reviews**: Diverse reviews from various specialists.
+*   **Admin Panel**: SQL log management.
+*   **Automatic Authentication**: Mock mode for easy testing.
 
-- ✅ **Каталог рабочих мест** с фильтрацией по категориям
-- ✅ **Система бронирований** с QR-кодами
-- ✅ **Финансовая система** с автоматическими транзакциями
-- ✅ **Отзывы пользователей** от разных специалистов
-- ✅ **Административная панель** SQL-логов
-- ✅ **Автоматическая аутентификация** (mock-режим)
-
-## 🛠 Технологический стек
+## Tech Stack
 
 ### Frontend
-- **React 19** + TypeScript
-- **Tailwind CSS 4** - стилизация
-- **tRPC 11** - type-safe API
-- **Wouter** - роутинг
-- **shadcn/ui** - UI компоненты
-- **QRCode.react** - генерация QR-кодов
+
+*   **React 19** + TypeScript
+*   **Tailwind CSS 4** - Styling
+*   **tRPC 11** - Type-safe API
+*   **Wouter** - Routing
+*   **shadcn/ui** - UI Components
+*   **QRCode.react** - QR code generation
 
 ### Backend
-- **Node.js 22**
-- **Express 4**
-- **tRPC 11** - type-safe API
-- **Drizzle ORM** - работа с БД
-- **PostgreSQL 14+** - база данных
 
-## 📦 Быстрый старт
+*   **Node.js 22**
+*   **Express 4**
+*   **tRPC 11** - Type-safe API
+*   **Drizzle ORM** - Database interaction
+*   **PostgreSQL 14+** - Database
 
-### Локальная разработка
+## Installation & Setup
 
-```bash
-# 1. Клонировать репозиторий
-git clone https://github.com/makimyys-afk/beauty-coworking-postgres.git
-cd beauty-coworking-postgres
+### Local Development
 
-# 2. Установить зависимости
-pnpm install
+1.  **Clone the repository**:
 
-# 3. Настроить PostgreSQL
-# Создать базу данных и пользователя
+    ```bash
+    git clone https://github.com/makimyys-afk/beauty-coworking-postgres.git
+    cd beauty-coworking-postgres
+    ```
 
-# 4. Настроить переменные окружения
-cp .env.example .env
-# Отредактировать .env с вашими настройками
+2.  **Install dependencies**:
 
-# 5. Применить миграции
-pnpm drizzle-kit migrate
+    ```bash
+    pnpm install
+    ```
 
-# 6. Заполнить тестовыми данными
-node seed-complete.mjs
-node generate-reviews-diverse.mjs
+3.  **Configure PostgreSQL**:
+    Create a database and user.
 
-# 7. Запустить приложение
-pnpm dev
-```
+4.  **Set up environment variables**:
 
-Приложение будет доступно на http://localhost:3000
+    ```bash
+    cp .env.example .env
+    ```
+    Edit `.env` with your settings.
 
-## 🚂 Развертывание на Railway
+5.  **Apply migrations**:
 
-### Автоматическое развертывание
+    ```bash
+    pnpm drizzle-kit migrate
+    ```
 
-1. Нажмите кнопку "Deploy on Railway" выше
-2. Подключите ваш GitHub аккаунт
-3. Railway автоматически:
-   - Создаст PostgreSQL базу данных
-   - Установит переменную `DATABASE_URL`
-   - Соберет и запустит приложение
+6.  **Populate with test data**:
 
-### Ручное развертывание
+    ```bash
+    node seed-complete.mjs
+    node generate-reviews-diverse.mjs
+    ```
 
-1. Создайте новый проект на [Railway](https://railway.app)
-2. Добавьте PostgreSQL сервис
-3. Добавьте ваш GitHub репозиторий
-4. Настройте переменные окружения (см. `.env.example`)
-5. Railway автоматически развернет приложение
+7.  **Start the application**:
 
-### Необходимые переменные окружения
+    ```bash
+    pnpm dev
+    ```
 
-```env
-DATABASE_URL=postgresql://...  # Автоматически от Railway
-JWT_SECRET=your-secret-key
-NODE_ENV=production
-```
+    The application will be available at `http://localhost:3000`.
 
-Остальные переменные опциональны (см. `.env.example`)
+## Usage
 
-## 📁 Структура проекта
+After successful installation and setup, navigate to `http://localhost:3000` in your browser. You can explore the workspace catalog, make bookings, and manage financial transactions. The administrative panel allows for SQL log monitoring. For testing purposes, you can use the following credentials:
 
-```
-beauty-coworking-postgres/
-├── client/                    # Frontend (React + TypeScript)
-│   ├── src/
-│   │   ├── components/       # React компоненты
-│   │   ├── pages/           # Страницы приложения
-│   │   └── lib/             # Утилиты и хелперы
-├── server/                   # Backend (Express + tRPC)
-│   ├── _core/               # Основная логика сервера
-│   ├── routers.ts           # tRPC роутеры
-│   └── db.ts                # Работа с базой данных
-├── drizzle/                 # Схема БД и миграции
-│   ├── schema.ts            # PostgreSQL схема
-│   └── migrations/          # SQL миграции
-├── shared/                  # Общие типы
-├── *.mjs                    # Скрипты заполнения БД
-└── package.json             # Зависимости
-```
+*   **Email**: `orlova.maria@example.com`
+*   **Password**: Any (mock authentication)
 
-## 🗄 База данных
+## License
 
-### Схема PostgreSQL
-
-- **users** - пользователи системы
-- **workspaces** - рабочие места
-- **bookings** - бронирования
-- **reviews** - отзывы
-- **transactions** - финансовые транзакции
-- **sqlLogs** - логи SQL запросов
-
-### Миграции
-
-```bash
-# Создать новую миграцию
-pnpm drizzle-kit generate
-
-# Применить миграции
-pnpm drizzle-kit migrate
-
-# Открыть Drizzle Studio
-pnpm drizzle-kit studio
-```
-
-## 🧪 Тестовые данные
-
-В проекте есть скрипты для заполнения базы тестовыми данными:
-
-```bash
-# Основные данные (места, пользователи)
-node seed-complete.mjs
-
-# Отзывы от разных пользователей
-node generate-reviews-diverse.mjs
-```
-
-**Тестовый пользователь:**
-- Email: orlova.maria@example.com
-- Пароль: любой (mock-авторизация)
-
-## 📝 Скрипты
-
-```json
-{
-  "dev": "Запуск dev-сервера",
-  "build": "Сборка для production",
-  "start": "Запуск production сервера",
-  "db:push": "Применить изменения схемы",
-  "db:studio": "Открыть Drizzle Studio"
-}
-```
-
-## 🔧 Конфигурация
-
-### Railway
-
-Проект настроен для автоматического развертывания на Railway:
-- `railway.json` - конфигурация Railway
-- `nixpacks.toml` - конфигурация сборки
-- `.env.example` - пример переменных окружения
-
-### PostgreSQL
-
-Требования:
-- PostgreSQL 14.x или выше
-- Минимум 512 MB RAM
-- Поддержка JSONB типов
-
-## 🤝 Вклад в проект
-
-Мы приветствуем ваш вклад! Пожалуйста:
-
-1. Форкните репозиторий
-2. Создайте ветку для вашей функции (`git checkout -b feature/amazing-feature`)
-3. Закоммитьте изменения (`git commit -m 'Add amazing feature'`)
-4. Запушьте в ветку (`git push origin feature/amazing-feature`)
-5. Откройте Pull Request
-
-## 📄 Лицензия
-
-MIT License - см. файл [LICENSE](LICENSE)
-
-## 🔗 Ссылки
-
-- [Документация Drizzle ORM](https://orm.drizzle.team)
-- [Документация tRPC](https://trpc.io)
-- [Документация Railway](https://docs.railway.app)
-- [Документация React](https://react.dev)
-
-## 📞 Поддержка
-
-Если у вас возникли вопросы или проблемы, пожалуйста:
-- Откройте [Issue](https://github.com/makimyys-afk/beauty-coworking-postgres/issues)
-- Напишите в [Discussions](https://github.com/makimyys-afk/beauty-coworking-postgres/discussions)
-
----
-
-Сделано с ❤️ для бьюти-индустрии
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
